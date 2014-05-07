@@ -1,0 +1,256 @@
+<html>
+<head>
+<style type="text/css">
+body {
+	background-image:url('/background.png');
+	width:500px;
+	height:500px;
+}
+#center-div {
+	width: 90%;
+	height: 90%;
+	margin-left:auto;
+	margin-right:auto;
+}
+#panel-div {
+	width:100%;
+	height: 10%;
+	margin-left:auto;
+	margin-right:auto;
+	color: #cccccc;
+}
+#game-div{
+	width:100%;
+	height: 90%;
+	margin-top:20px;
+	margin-left:auto;
+	margin-right:auto;
+}
+#game-div:hover {
+	cursor:pointer;
+}
+#title {
+	font-family: sans-serif;
+	font-size:30pt;
+	margin: 10px 0px 10px 0px;
+	text-align:center; background-color: #aaaaaa; 
+    padding: 10px;
+    border-radius: 5px; border: 1px solid #000000;
+    font-size: 20pt; color: #333333;
+}
+select {
+	display:inline;
+	float: left;
+	margin:0px 0px 0px 5px;
+}
+label {
+	display:inline;
+	float: left;
+	margin:0px 0px 0px 5px;
+}
+input {
+	display:inline;
+	float: left;
+	margin:0px 0px 0px 5px;
+}
+.tile {
+	position: absolute;
+	/*border-style:solid;
+	border-width:1px;*/
+	text-align: center;
+	transition: background-image 1s ease-in-out;
+}
+</style>
+<script type='text/javascript'>
+	// http://paulirish.com/2011/requestanimationframe-for-smart-animating/
+	// http://my.opera.com/emoller/blog/2011/12/20/requestanimationframe-for-smart-er-animating
+	// requestAnimationFrame polyfill by Erik Möller
+	// fixes from Paul Irish and Tino Zijdel
+	(function() {
+		var lastTime = 0;
+		var vendors = ['ms', 'moz', 'webkit', 'o'];
+		for(var x = 0; x < vendors.length && !window.requestAnimationFrame; ++x) {
+			window.requestAnimationFrame = window[vendors[x]+'RequestAnimationFrame'];
+			window.cancelAnimationFrame = window[vendors[x]+'CancelAnimationFrame']
+									   || window[vendors[x]+'CancelRequestAnimationFrame'];
+		}
+		if (!window.requestAnimationFrame)
+			window.requestAnimationFrame = function(callback, element) {
+				var currTime = new Date().getTime();
+				var timeToCall = Math.max(0, 16 - (currTime - lastTime));
+				var id = window.setTimeout(function() { callback(currTime + timeToCall); },
+				  timeToCall);
+				lastTime = currTime + timeToCall;
+				return id;
+			};
+		if (!window.cancelAnimationFrame)
+			window.cancelAnimationFrame = function(id) {
+				clearTimeout(id);
+			};
+	}());
+	ref = window.location.href;
+	ind = window.location.href.indexOf('?');
+	if (ind>=0) window.gridSize=parseInt(ref.substring(ind+1,ref.length));
+	if (ind<0||isNaN(window.gridSize)) window.gridSize = 2;
+	window.arrayLength = window.gridSize * window.gridSize - 1;
+	window.currentTile=null;
+	window.movingTile=null;
+	window.currentOffsetX=0;
+	window.currentOffsetY=0;
+	window.blankTileLocation=window.arrayLength;
+	window.animationRepeat=10;
+	window.gameRunning = true;
+	function fischerYatesShuffle() {
+		var A = new Array(window.arrayLength);
+		for (i=0;i<window.arrayLength;i++) A[i]=i;
+		for (i=0;i<window.arrayLength;i++) {
+			j = Math.floor(Math.random()*(window.arrayLength-1-i));
+			tmp = A[window.arrayLength-1-i];
+			A[window.arrayLength-1-i] = A[j];
+			A[j] = tmp;
+		}
+		if ((window.arrayLength-1)%2==1) { //must have even no. of swaps to preserve parity
+			j = Math.floor(Math.random()*(window.arrayLength-1));
+			tmp = A[window.arrayLength-1];
+			A[window.arrayLength-1] = A[j];
+			A[j] = tmp;
+		}
+		return A;
+	}
+	
+	function processTiles(event) {
+		if (window.currentTile!=null) {
+			snapToGrid();
+			window.removeEventListener('mousemove',moveTile);
+			window.currentTile=null;
+		}
+		event.preventDefault();
+		return false;
+	}
+	
+	function moveTile(event) {
+		window.currentTile.style.left=event.clientX - window.currentOffsetX;
+		window.currentTile.style.top=event.clientY - window.currentOffsetY;
+	}
+	
+	function snapToGrid() {
+		targetLeft = window.tableLeft+window.tileMargin/2+(window.tileWidth+window.tileMargin)*(window.blankTileLocation%window.gridSize);
+		targetTop = window.tableTop+window.tileMargin/2+(window.tileHeight+window.tileMargin)*Math.floor(window.blankTileLocation/window.gridSize);
+		if (Math.abs(window.currentTile.offsetLeft-targetLeft)<window.tileWidth/2&&Math.abs(window.currentTile.offsetTop-targetTop)<window.tileHeight/2) {		
+			tmp = window.blankTileLocation;
+			window.blankTileLocation = window.currentTile.location;
+			window.currentTile.location = tmp;
+		} else {
+			targetLeft=window.tableLeft+window.tileMargin/2+(window.tileWidth+window.tileMargin)*(window.currentTile.location%window.gridSize);
+			targetTop=window.tableTop+window.tileMargin/2+(window.tileHeight+window.tileMargin)*Math.floor(window.currentTile.location/window.gridSize);
+		}
+		window.movingTile=window.currentTile;
+		v={x:(targetLeft-window.currentTile.offsetLeft)/window.animationRepeat,y:(targetTop-window.currentTile.offsetTop)/window.animationRepeat};
+		i=1;
+		function draw() {
+			animationId=requestAnimationFrame(draw);
+			window.movingTile.style.left = window.movingTile.offsetLeft + v.x;
+			window.movingTile.style.top = window.movingTile.offsetTop + v.y;
+			if (i>=window.animationRepeat) {
+				cancelAnimationFrame(animationId);
+				window.movingTile.style.left = targetLeft;
+				window.movingTile.style.top = targetTop;
+				window.movingTile = null;
+				checkWinningCondition();
+			} else i++;
+		};
+		draw();
+	}
+	
+	function checkWinningCondition() {
+		for (i=1;i<=window.arrayLength;i++) {
+			e = document.getElementById(i);
+			if (e.id!=''+(e.location+1)) return;
+		}
+		iDiv = document.createElement('div');
+		iDiv.id=window.arrayLength+1;
+		iDiv.className = 'tile';
+		iDiv.style.width = window.tileWidth;
+		iDiv.style.height = window.tileHeight;
+		iDiv.style.backgroundSize = tileWidth+"px "+tileHeight+"px";
+		iDiv.style.left=window.tableLeft+window.tileMargin/2+(window.tileWidth+window.tileMargin)*(window.arrayLength%window.gridSize);
+		iDiv.style.top=window.tableTop+window.tileMargin/2+(window.tileHeight+window.tileMargin)*Math.floor(window.arrayLength/window.gridSize);
+		iDiv.style.backgroundImage="url('/transparent.png')";
+		document.getElementById("game-div").appendChild(iDiv);
+		window.gameRunning = false;
+		setTimeout(function() {
+			iDiv.style.backgroundImage="url('"+(window.arrayLength+1)+"')";
+		},100);
+		setTimeout(function() {
+			alert('Congratulations. You won!');
+		},1100);
+	}
+	
+	function init(event) {
+		document.getElementById('size-select').value=window.gridSize;
+		var g = document.getElementById("game-div");
+		g.style.marginTop=(window.innerHeight-g.offsetHeight)/2;
+		window.tableLeft = g.offsetLeft+g.clientLeft;
+		window.tableTop = g.offsetTop+g.clientTop;
+		window.tileMargin = 0;
+		window.tileWidth = g.clientWidth/window.gridSize - window.tileMargin;
+		window.tileHeight = g.clientHeight/window.gridSize - window.tileMargin;
+		var grid = fischerYatesShuffle();
+		for (i=1;i<=window.arrayLength;i++) {
+			var iDiv = document.createElement('div');
+			iDiv.id = i;
+			iDiv.className = 'tile';
+			//iDiv.appendChild(document.createTextNode(i));
+			iDiv.style.width = window.tileWidth;
+			iDiv.style.height = window.tileHeight;
+			iDiv.style.backgroundSize = tileWidth+"px "+tileHeight+"px";
+			iDiv.location = grid[i-1];
+			iDiv.style.left=window.tableLeft+window.tileMargin/2+(window.tileWidth+window.tileMargin)*(iDiv.location%window.gridSize);
+			iDiv.style.top=window.tableTop+window.tileMargin/2+(window.tileHeight+window.tileMargin)*Math.floor(iDiv.location/window.gridSize);
+			iDiv.addEventListener('mousedown',function(event) {
+				if (!window.gameRunning) return false;
+				if (Math.abs(event.target.location-window.blankTileLocation)==window.gridSize||
+					window.blankTileLocation%window.gridSize!=0&&event.target.location==window.blankTileLocation-1||
+					window.blankTileLocation%window.gridSize!=(window.gridSize-1)&&event.target.location==window.blankTileLocation+1) {
+						window.currentTile = event.target;
+						window.currentOffsetX = event.clientX - window.currentTile.offsetLeft;
+						window.currentOffsetY = event.clientY - window.currentTile.offsetTop;
+						window.addEventListener('mousemove',moveTile);
+				}
+				event.preventDefault();
+				return false;
+			},false);
+			iDiv.style.backgroundImage="url('"+i+"')";
+			g.appendChild(iDiv);
+		}
+		
+	}
+	document.addEventListener("DOMContentLoaded",init,false);
+	window.addEventListener('mouseup',processTiles,false);
+</script>
+</head>
+<body>
+<div id='center-div'>
+<div id='panel-div'>
+	<div id='title'>15-puzzle</div>
+	<form action='uploadphoto' method='post' enctype='multipart/form-data'>
+		<input type='file' name='file'>
+		<label>Size:</label>
+		<select id='size-select' name='size'>
+			<option value=2>2</option>
+			<option value=3>3</option>
+			<option value=4>4</option>
+			<option value=5>5</option>
+			<option value=6>6</option>
+			<option value=7>7</option>
+			<option value=8>8</option>
+			<option value=9>9</option>
+			<option value=10>10</option>
+		</select>
+		<input type='submit' value='Upload'>
+	</form>
+</div>
+<div id='game-div'></div>
+</div>
+</body>
+</html>
